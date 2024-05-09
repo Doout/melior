@@ -367,16 +367,14 @@ impl<'c, 'a> OperationRef<'c, 'a> {
     ///
     /// This function is different from `deref` because the correct lifetime is
     /// kept for the return type.
-    ///
-    /// # Safety
-    ///
-    /// The returned reference is safe to use only in the lifetime scope of the
-    /// operation reference.
-    pub unsafe fn to_ref(&self) -> &'a Operation<'c> {
+    pub fn to_ref(&self) -> &'a Operation<'c> {
         // As we can't deref OperationRef<'a> into `&'a Operation`, we forcibly cast its
         // lifetime here to extend it from the lifetime of `ObjectRef<'a>` itself into
-        // `'a`.
-        transmute(self)
+        // `'a` by reinterpreting it as `&'a Object`. This is safe because, assuming
+        // `ObjectRef<'a>: 'b` (i.e. `ObjectRef` has lifetime `'b`), then Rust will already
+        // enforce `'a: 'b` (i.e. `'a` is at least as long as `'b`); therefore, reinterpreting
+        // as `&'a Object` does not change the upper bound of the lifetime of the object.
+        unsafe { transmute(self) }
     }
 
     /// Converts an operation reference into a raw object.
