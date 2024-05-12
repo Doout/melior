@@ -269,6 +269,20 @@ pub struct BlockRef<'c, 'a> {
 }
 
 impl<'c, 'a> BlockRef<'c, 'a> {
+    /// Returns a block.
+    ///
+    /// This function is different from `deref` because the correct lifetime is
+    /// kept for the return type.
+    pub fn to_ref(&self) -> &'a Block<'c> {
+        // As we can't deref BlockRef<'a> into `&'a Block`, we forcibly cast its
+        // lifetime here to extend it from the lifetime of `ObjectRef<'a>` itself into
+        // `'a` by reinterpreting it as `&'a Object`. This is safe because, assuming
+        // `ObjectRef<'a>: 'b` (i.e. `ObjectRef` has lifetime `'b`), then Rust will already
+        // enforce `'a: 'b` (i.e. `'a` is at least as long as `'b`); therefore, reinterpreting
+        // as `&'a Object` does not change the upper bound of the lifetime of the object.
+        unsafe { transmute(self) }
+    }
+
     /// Creates a block reference from a raw object.
     ///
     /// # Safety
