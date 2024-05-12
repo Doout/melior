@@ -43,10 +43,14 @@
     "spirv",
     "stdc",
     "strided",
+    "subview",
     "tablegen",
     "tblgen",
     "tosa",
     "unranked",
+    "irdl",
+    "IRDL",
+    "DLTI",
     "vulkan"
   ]
 }
