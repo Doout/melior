@@ -110,6 +110,20 @@ pub struct RegionRef<'c, 'a> {
 }
 
 impl<'c, 'a> RegionRef<'c, 'a> {
+    /// Returns a region.
+    ///
+    /// This function is different from `deref` because the correct lifetime is
+    /// kept for the return type.
+    pub fn to_ref(&self) -> &'a Region<'c> {
+        // As we can't deref RegionRef<'a> into `&'a Region`, we forcibly cast its
+        // lifetime here to extend it from the lifetime of `ObjectRef<'a>` itself into
+        // `'a` by reinterpreting it as `&'a Object`. This is safe because, assuming
+        // `ObjectRef<'a>: 'b` (i.e. `ObjectRef` has lifetime `'b`), then Rust will already
+        // enforce `'a: 'b` (i.e. `'a` is at least as long as `'b`); therefore, reinterpreting
+        // as `&'a Object` does not change the upper bound of the lifetime of the object.
+        unsafe { transmute(self) }
+    }
+
     /// Creates a region from a raw object.
     ///
     /// # Safety
