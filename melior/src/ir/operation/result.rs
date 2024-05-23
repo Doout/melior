@@ -32,6 +32,12 @@ impl<'c, 'a> OperationResult<'c, 'a> {
             value: Value::from_raw(value),
         }
     }
+
+    /// # Returns
+    /// Returns a copy of the underlying value.
+    pub fn value(&self) -> Value<'c, 'a> {
+        self.value
+    }
 }
 
 impl<'c, 'a> ValueLike<'c> for OperationResult<'c, 'a> {
