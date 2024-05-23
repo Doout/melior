@@ -123,12 +123,18 @@ pub fn poison<'c>(result_type: Type<'c>, location: Location<'c>) -> Operation<'c
         .expect("valid operation")
 }
 
-/// Creates a `llvm.mlir.null` operation. A null pointer.
-pub fn nullptr<'c>(ptr_type: Type<'c>, location: Location<'c>) -> Operation<'c> {
-    OperationBuilder::new("llvm.mlir.null", location)
-        .add_results(&[ptr_type])
+/// Creates a zero value.
+pub fn zero<'c>(r#type: Type<'c>, location: Location<'c>) -> Operation<'c> {
+    OperationBuilder::new("llvm.mlir.zero", location)
+        .add_results(&[r#type])
         .build()
         .expect("valid operation")
+}
+
+/// Creates a null pointer.
+#[deprecated]
+pub fn nullptr<'c>(ptr_type: Type<'c>, location: Location<'c>) -> Operation<'c> {
+    zero(ptr_type, location)
 }
 
 /// Creates a `llvm.unreachable` operation.
@@ -362,13 +368,15 @@ pub fn zext<'c>(
 
 #[cfg(test)]
 mod tests {
+    use tests::r#type::pointer;
+
     use super::*;
     use crate::{
         dialect::{
             arith, func,
             llvm::{
                 attributes::{linkage, Linkage},
-                r#type::{function, opaque_pointer},
+                r#type::function,
             },
         },
         ir::{
@@ -445,7 +453,7 @@ mod tests {
         let location = Location::unknown(&context);
         let mut module = Module::new(location);
         let integer_type = IntegerType::new(&context, 64).into();
-        let ptr_type = r#type::opaque_pointer(&context);
+        let ptr_type = r#type::pointer(&context, 0);
 
         module.body().append_operation(func::func(
             &context,
@@ -486,7 +494,7 @@ mod tests {
         let location = Location::unknown(&context);
         let mut module = Module::new(location);
         let integer_type = IntegerType::new(&context, 64).into();
-        let ptr_type = r#type::opaque_pointer(&context);
+        let ptr_type = r#type::pointer(&context, 0);
 
         module.body().append_operation(func::func(
             &context,
@@ -580,6 +588,78 @@ mod tests {
     }
 
     #[test]
+    fn compile_zero() {
+        let context = create_test_context();
+
+        let location = Location::unknown(&context);
+        let mut module = Module::new(location);
+        let integer_type = IntegerType::new(&context, 64).into();
+
+        module.body().append_operation(func::func(
+            &context,
+            StringAttribute::new(&context, "foo"),
+            TypeAttribute::new(FunctionType::new(&context, &[], &[integer_type]).into()),
+            {
+                let block = Block::new(&[]);
+
+                let operation = block.append_operation(zero(integer_type, location));
+
+                block.append_operation(func::r#return(
+                    &[operation.result(0).unwrap().into()],
+                    location,
+                ));
+
+                let region = Region::new();
+                region.append_block(block);
+                region
+            },
+            &[],
+            location,
+        ));
+
+        convert_module(&context, &mut module);
+
+        assert!(module.as_operation().verify());
+        insta::assert_snapshot!(module.as_operation());
+    }
+
+    #[test]
+    fn compile_null_ptr() {
+        let context = create_test_context();
+
+        let location = Location::unknown(&context);
+        let mut module = Module::new(location);
+        let ptr_type = r#type::pointer(&context, 0);
+
+        module.body().append_operation(func::func(
+            &context,
+            StringAttribute::new(&context, "foo"),
+            TypeAttribute::new(FunctionType::new(&context, &[], &[ptr_type]).into()),
+            {
+                let block = Block::new(&[]);
+
+                let operation = block.append_operation(zero(ptr_type, location));
+
+                block.append_operation(func::r#return(
+                    &[operation.result(0).unwrap().into()],
+                    location,
+                ));
+
+                let region = Region::new();
+                region.append_block(block);
+                region
+            },
+            &[],
+            location,
+        ));
+
+        convert_module(&context, &mut module);
+
+        assert!(module.as_operation().verify());
+        insta::assert_snapshot!(module.as_operation());
+    }
+
+    #[test]
     fn compile_undefined() {
         let context = create_test_context();
 
@@ -654,7 +734,7 @@ mod tests {
         let location = Location::unknown(&context);
         let mut module = Module::new(location);
         let integer_type = IntegerType::new(&context, 64).into();
-        let ptr_type = r#type::opaque_pointer(&context);
+        let ptr_type = r#type::pointer(&context, 0);
 
         module.body().append_operation(func::func(
             &context,
@@ -694,7 +774,7 @@ mod tests {
         let location = Location::unknown(&context);
         let mut module = Module::new(location);
         let integer_type = IntegerType::new(&context, 64).into();
-        let ptr_type = r#type::opaque_pointer(&context);
+        let ptr_type = r#type::pointer(&context, 0);
 
         module.body().append_operation(func::func(
             &context,
@@ -734,7 +814,7 @@ mod tests {
         let location = Location::unknown(&context);
         let mut module = Module::new(location);
         let integer_type = IntegerType::new(&context, 64).into();
-        let ptr_type = r#type::opaque_pointer(&context);
+        let ptr_type = r#type::pointer(&context, 0);
 
         module.body().append_operation(func::func(
             &context,
@@ -774,7 +854,7 @@ mod tests {
         let location = Location::unknown(&context);
         let mut module = Module::new(location);
         let integer_type = IntegerType::new(&context, 64).into();
-        let ptr_type = r#type::opaque_pointer(&context);
+        let ptr_type = r#type::pointer(&context, 0);
 
         module.body().append_operation(func::func(
             &context,
@@ -821,7 +901,7 @@ mod tests {
         module.body().append_operation(func(
             &context,
             StringAttribute::new(&context, "printf"),
-            TypeAttribute::new(function(integer_type, &[opaque_pointer(&context)], true)),
+            TypeAttribute::new(function(integer_type, &[pointer(&context, 0)], true)),
             Region::new(),
             &[(
                 Identifier::new(&context, "linkage"),
